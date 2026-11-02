@@ -1,0 +1,4 @@
+PWA forced redeploy: 2026-08-19T11:20+03:00
+Attempt: PR-triggered retry
+Reason: publish the merged PWA bottom-action geometry fix from PR #522 so «Добавить задачу» and «Сохранить табель» no longer double-count the reserved bottom navigation area.
+Expected application fix: d2c104806abb647684bb3a543bd4f8013a416117
