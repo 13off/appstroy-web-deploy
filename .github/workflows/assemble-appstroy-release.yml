@@ -1,0 +1,62 @@
+name: Assemble AppStroy compiled web release
+
+on:
+  push:
+    branches:
+      - appstroy-release-stage
+    paths:
+      - .github/workflows/assemble-appstroy-release.yml
+      - .release-parts/**
+      - index.html
+      - flutter_bootstrap.js
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  assemble:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout staged public release
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: appstroy-release-stage
+          fetch-depth: 1
+
+      - name: Assemble verified Flutter bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .release-parts/part00 .release-parts/part01 .release-parts/part02 .release-parts/part03 .release-parts/part04 > main.dart.js
+          actual_sha="$(git hash-object main.dart.js)"
+          expected_sha="8ae2507aae5c1cdd89d22a3933dae2499fb7e455"
+          if [ "$actual_sha" != "$expected_sha" ]; then
+            echo "::error::Compiled app SHA mismatch: $actual_sha"
+            exit 1
+          fi
+          test -s index.html
+          test -s flutter_bootstrap.js
+          test -s assets/fonts/MaterialIcons-Regular.otf
+          test -s canvaskit/canvaskit.wasm
+          grep -q "flutter_bootstrap.js?v=41420944905" index.html
+          test ! -e lib
+          test ! -e supabase
+          echo "Verified compiled JS: ${actual_sha}"
+
+      - name: Create one-commit verified public snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          rm -rf .release-parts .github
+          printf "41420944905\n" > .last_build_id
+          touch .nojekyll
+          git checkout --orphan verified-public-release
+          git rm --cached -r . >/dev/null 2>&1 || true
+          git add -A
+          git commit -m "Deploy AppСтрой web c17c4270dfce026af63589e1634ae5dc6ea13124"
+          test "$(git rev-list --count HEAD)" = "1"
+          git push --force origin HEAD:refs/heads/appstroy-release-ready
